@@ -34,8 +34,17 @@ docker-push:: ## pushes the docker image to the registry
 
 docker-release:: docker-build docker-push ## builds and pushes the docker image to the registry
 
+flush:: ## removes generated, temporary, dev files
+		rm -Rfv bin/* test/game/* test/*.jsdos ./*.jsdos
+
+install:: ## installs the compiled binary
+		sudo cp -v bin/jsdos-bundler /usr/local/bin/
+
 ls-zip:: ## lists the files in the zip bundle
 		@unzip -l test/bundle.jsdos
+
+test-http:: ## runs a web server with the bundle
+		httpstaticd -d ./test
 
 # A help target including self-documenting targets (see the awk statement)
 define HELP_TEXT

@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -82,6 +84,46 @@ func beforeApp(c *cli.Context) error {
 	return nil
 }
 
+// findEntryPoint scans a given directory for the first file ending in .exe, .com, or .bat.
+// It returns the name of the first matching file found.
+// If no suitable file is found, it returns the default string "ECHO".
+// It also returns an error if the directory cannot be read.
+func findEntryPoint(gameDir string) (string, error) {
+	// Read all entries in the given directory
+	entries, err := os.ReadDir(gameDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to read directory '%s': %w", gameDir, err)
+	}
+
+	// Define the valid executable extensions
+	validExtensions := map[string]bool{
+		".exe": true,
+		".com": true,
+		".bat": true,
+	}
+
+	// Loop through each entry in the directory
+	for _, entry := range entries {
+		// Skip subdirectories
+		if entry.IsDir() {
+			continue
+		}
+
+		// Get the file extension and convert it to lowercase for a case-insensitive check
+		fileName := entry.Name()
+		ext := strings.ToLower(filepath.Ext(fileName))
+
+		// Check if the extension is in our set of valid extensions
+		if validExtensions[ext] {
+			// A valid entry point was found, return its name immediately
+			return fileName, nil
+		}
+	}
+
+	// If the loop completes, no suitable file was found in the directory
+	return "ECHO", nil
+}
+
 func main() {
 	app := &cli.App{
 		Name:     "jsdosbundler",
@@ -119,6 +161,18 @@ func main() {
 						Usage:   "game files directory",
 						EnvVars: []string{"GAME_DIR"},
 					},
+					&cli.StringFlag{
+						Name:    "entrypoint",
+						Aliases: []string{"e"},
+						Usage:   "final command in autoexec",
+						EnvVars: []string{"ENTRYPOINT"},
+					},
+					&cli.StringFlag{
+						Name:    "output-file",
+						Aliases: []string{"o"},
+						Usage:   "js-dos bundle output file path",
+						EnvVars: []string{"OUTPUT"},
+					},
 				},
 				Action: func(cCtx *cli.Context) error {
 					if len(cCtx.Args().First()) < 1 {
@@ -126,12 +180,27 @@ func main() {
 						os.Exit(1)
 					}
 					gameDir := cCtx.String("game-dir")
+					entryPoint := cCtx.String("entrypoint")
+
+					var err error
+					if entryPoint == "" {
+						entryPoint, err = findEntryPoint(gameDir)
+						if err != nil {
+							fmt.Printf("Error: %v\n", err)
+							os.Exit(1)
+						}
+					}
+
 					outputFile := cCtx.Args().First() + ".jsdos"
-					jsdosbundler.CreateBundle(gameDir, outputFile)
+					if cCtx.String("output-file") != "" {
+						outputFile = cCtx.String("output-file")
+					}
+
+					jsdosbundler.CreateBundle(gameDir, entryPoint, outputFile)
+
 					return nil
 				},
 			},
-
 			{
 				Name:  "module-info",
 				Usage: "shows compiled in go modules",

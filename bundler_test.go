@@ -12,10 +12,11 @@ func TestCreateBundle(t *testing.T) {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	entryPoint := "CAT.EXE"           // final autoexec
 	gameDir := "test/game"            // game files
 	outputFile := "test/bundle.jsdos" // output bundle file
 
-	err := CreateBundle(gameDir, outputFile)
+	err := CreateBundle(gameDir, entryPoint, outputFile)
 	if err != nil {
 		t.Errorf("got %e, wanted nil", err)
 	}
